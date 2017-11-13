@@ -394,13 +394,13 @@ pid_t* bgpid(struct job_t *jobs){
 
    for (i = 0; i < MAXJOBS; i++)
    {
-   	 if (jobs[i].state == BG)
-	 	{
-		  bgjobs[j]=jobs[i].pid;
-		  j++;
-		}
+     if (jobs[i].state == BG)
+    {
+      bgjobs[j]=jobs[i].pid;
+      j++;
+    }
    }
-	return bgjobs;
+  return bgjobs;
    return 0;
 }
 
@@ -535,5 +535,4 @@ void sigquit_handler(int sig)
   exit(1);
 }
 
-
-
+// vim: tabstop=2 expandtab shiftwidth=2 softtabstop=2

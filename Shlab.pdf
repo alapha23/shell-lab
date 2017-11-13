@@ -1,7 +1,7 @@
 %!PS-Adobe-2.0
 %%Creator: dvips(k) 5.995 Copyright 2015 Radical Eye Software
 %%Title: shlab.dvi
-%%CreationDate: Mon Nov 13 16:06:41 2017
+%%CreationDate: Mon Nov 13 16:35:19 2017
 %%Pages: 7
 %%PageOrder: Ascend
 %%BoundingBox: 0 0 596 842
@@ -12,7 +12,7 @@
 %DVIPSWebPage: (www.radicaleye.com)
 %DVIPSCommandLine: dvips -o shlab.pdf shlab.dvi
 %DVIPSParameters: dpi=600
-%DVIPSSource:  TeX output 2017.11.13:1606
+%DVIPSSource:  TeX output 2017.11.13:1635
 %%BeginProcSet: tex.pro 0 0
 %!
 /TeXDict 300 dict def TeXDict begin/N{def}def/B{bind def}N/S{exch}N/X{S
@@ -3058,7 +3058,7 @@ y Fa(30)46 b Fh(Lab)40 b(Report.)79 b(The)39 b(report)i(should)h
 b(dif)n(\002culties)41 b(and)227 1647 y(thoughts)31 b(during)f(the)f
 (implementation)j(of)c(this)h(lab)l(.)45 b(Y)-10 b(ou)28
 b(should)i(use)f(the)g(template)h(report)g(we)d(pro)o(vide)j(and)227
-1760 y(submit)25 b(the)e(hardw)o(are)i(cop)o(y)g(of)e(this)h(report.)0
+1760 y(submit)25 b(the)e(hardcop)o(y)j(of)e(this)g(report.)0
 1987 y(Y)-10 b(our)25 b(solution)i(shell)e(will)g(be)f(tested)i(for)f
 (correctness)j(on)d(a)f(Linux)h(machine,)h(using)g(the)f(same)g(shell)h
 (dri)n(v)o(er)f(and)g(trace)0 2099 y(\002les)f(that)h(were)f(included)j
