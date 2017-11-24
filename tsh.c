@@ -4,8 +4,8 @@
  *
  * tsh - A tiny shell program with job control
  *
- * Name: <fill in>
- * Student id: <fill in>
+ * Name: Gao Zhiyuan
+ * Student id: 2017-81842
  *
  */
 #include <stdio.h>
@@ -63,7 +63,7 @@ struct job_t jobs[MAXJOBS]; /* The job list */
  * Functions that you will implement
  */
 
-void eval(char *cmdline);
+void eval(char *cmdline);	// done
 int builtin_cmd(char **argv);
 void do_bgfg(char **argv);
 void waitfg(pid_t pid);
@@ -71,6 +71,8 @@ void waitfg(pid_t pid);
 void sigchld_handler(int sig);
 void sigint_handler(int sig);
 void sigtstp_handler(int sig);
+
+pid_t Fork(void);
 
 /*----------------------------------------------------------------------------*/
 
@@ -176,6 +178,39 @@ int main(int argc, char **argv)
  */
 void eval(char *cmdline)
 {
+  char argv[MAXARGS];	/* argv for execve() */
+  int bg;		/* 1 for background or 0 for foreground */
+  pid_t pid;		/* process id */
+
+  bg = parseline(cmdline, argv);
+  if(argv[0] == NULL)
+    return ; 		/* ignore empty lines*/
+  
+  if(!buildtin_command(argv))
+  {
+    if((pid = Fork() == 0))	/* child running */
+    {
+      if( execve(argv[0], argv, environ) < 0)
+      {
+        printf("%s: Command not found.\n", argv[0]);
+        exit(0);
+      }
+    }
+  }
+
+  /* parent waits for foreground job to terminate */
+  if(!bg)
+  {
+    int status;
+    if(waitpid(pid, &status, 0)<0)
+    {
+      fprintf(stderr, "waitfg: waitpid error");
+      exit(1);
+    }
+    else
+      printf("%d %s", pid, cmdline);
+  }
+
   return;
 }
 
@@ -259,6 +294,17 @@ void do_bgfg(char **argv)
 void waitfg(pid_t pid)
 {
   return;
+}
+
+pid_t Fork(void)
+{
+  pid_t pid;
+  if(pid = fork() < 0)  
+  {
+    fprintf(stderr, "fork error\n");
+    exit(0);
+  }
+  return pid;
 }
 
 /*****************
