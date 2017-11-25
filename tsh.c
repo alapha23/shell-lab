@@ -18,6 +18,8 @@
 #include <sys/wait.h>
 #include <errno.h>
 
+#include <assert.h>
+
 /* Misc manifest constants */
 #define MAXLINE    1024   /* max line size */
 #define MAXARGS     128   /* max args on a command line */
@@ -64,8 +66,8 @@ struct job_t jobs[MAXJOBS]; /* The job list */
  */
 
 void eval(char *cmdline);	// done
-int builtin_cmd(char **argv);
-void do_bgfg(char **argv);
+int builtin_cmd(char **argv);   // done
+int do_bgfg(char **argv);
 void waitfg(pid_t pid);
 
 void sigchld_handler(int sig);
@@ -73,6 +75,7 @@ void sigint_handler(int sig);
 void sigtstp_handler(int sig);
 
 pid_t Fork(void);
+//void printjob(struct job_t *jobs, pid_t pid);
 
 /*----------------------------------------------------------------------------*/
 
@@ -178,37 +181,40 @@ int main(int argc, char **argv)
  */
 void eval(char *cmdline)
 {
-  char argv[MAXARGS];	/* argv for execve() */
-  int bg;		/* 1 for background or 0 for foreground */
+  char *argv[MAXARGS];	/* argv for execve() */
+  int bg;		/* BG=2, FG=1, ST=3  */
+  int if_builtin;	/* 1 if builtin*/
   pid_t pid;		/* process id */
 
-  bg = parseline(cmdline, argv);
+  /* parseline returns 1 if bg, else 0 */
+  bg = 1 + parseline(cmdline, argv);
   if(argv[0] == NULL)
-    return ; 		/* ignore empty lines*/
-  
-  if(!buildtin_command(argv))
+    return ; 		/* ignore empty lines */
+    
+  if_builtin =  builtin_cmd(argv);
+  if(if_builtin)
+    return ;
+  if(!if_builtin)	/* if it is not a cmd built in shell */
   {
-    if((pid = Fork() == 0))	/* child running */
+    if(((pid = Fork()) == 0))	/* child running */
     {
-      if( execve(argv[0], argv, environ) < 0)
+      if( execve(argv[0], argv, environ) < 0) /* exec the job */      
       {
         printf("%s: Command not found.\n", argv[0]);
         exit(0);
       }
+
     }
   }
+  addjob(jobs, pid, bg, cmdline);
+  if(bg == BG)
+    printf("[%d] %d %s", pid2jid(pid), pid,cmdline);
+
 
   /* parent waits for foreground job to terminate */
-  if(!bg)
+  if(bg == FG )
   {
-    int status;
-    if(waitpid(pid, &status, 0)<0)
-    {
-      fprintf(stderr, "waitfg: waitpid error");
-      exit(1);
-    }
-    else
-      printf("%d %s", pid, cmdline);
+    waitfg(pid);   
   }
 
   return;
@@ -277,15 +283,37 @@ int parseline(const char *cmdline, char **argv)
  */
 int builtin_cmd(char **argv)
 {
-  return 0;     /* not a builtin command */
+  if(!strcmp(argv[0], "quit"))
+    exit(0);
+  if(!strcmp(argv[0], "jobs"))
+  {
+    listjobs(jobs);  
+    return 1;
+  }
+  return do_bgfg(argv);
+
 }
 
 /*
  * do_bgfg - Execute the builtin bg and fg commands
  */
-void do_bgfg(char **argv)
+int do_bgfg(char **argv)
 {
-  return;
+  if(!strcmp(argv[0], "bg"))
+  {
+    if((argv+1) == NULL)
+    {
+     printf("bg command requires PID or %cjobid argument\n", 37);
+     fflush(stdout);
+    }
+    return 1;
+  }
+  if(!strcmp(argv[0], "fg"))
+  {
+    exit(0);
+  }
+
+  return 0;
 }
 
 /*
@@ -293,13 +321,20 @@ void do_bgfg(char **argv)
  */
 void waitfg(pid_t pid)
 {
+    int status;
+    deletejob(jobs, pid);
+    if(waitpid(pid, &status, 0) < 0 )
+    {
+      fprintf(stderr, "waitfg: waitpid error");
+      exit(1);
+    }
   return;
 }
 
 pid_t Fork(void)
 {
   pid_t pid;
-  if(pid = fork() < 0)  
+  if((pid = fork()) < 0)  
   {
     fprintf(stderr, "fork error\n");
     exit(0);
@@ -320,6 +355,14 @@ pid_t Fork(void)
  */
 void sigchld_handler(int sig)
 {
+  pid_t pid;
+  int status;
+  pid = waitpid(-1, &status, WNOHANG);
+  if(deletejob(jobs, pid) == 0)
+  {
+//    printf("error deleting jobs\n");
+//    fflush(stdout);
+  }
   return;
 }
 
@@ -422,6 +465,8 @@ int deletejob(struct job_t *jobs, pid_t pid)
   }
   return 0;
 }
+
+
 
 /* fgpid - Return PID of current foreground job, 0 if no such job */
 pid_t fgpid(struct job_t *jobs) {
