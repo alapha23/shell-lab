@@ -67,14 +67,17 @@ struct job_t jobs[MAXJOBS]; /* The job list */
 
 void eval(char *cmdline);	// done
 int builtin_cmd(char **argv);   // done
-int do_bgfg(char **argv);
-void waitfg(pid_t pid);
+int do_bgfg(char **argv);	// done
+void waitfg(pid_t pid);		// done
 
-void sigchld_handler(int sig);
-void sigint_handler(int sig);
-void sigtstp_handler(int sig);
+void sigchld_handler(int sig);	// done
+void sigint_handler(int sig);	// done
+void sigtstp_handler(int sig);	// done
 
 pid_t Fork(void);
+int do_bg(char **argv);
+int do_fg(char **argv);
+
 //void printjob(struct job_t *jobs, pid_t pid);
 
 /*----------------------------------------------------------------------------*/
@@ -186,6 +189,16 @@ void eval(char *cmdline)
   int if_builtin;	/* 1 if builtin*/
   pid_t pid;		/* process id */
   int fd[2];
+  sigset_t newmask, oldmask;
+  sigemptyset(&newmask);
+  sigemptyset(&oldmask);
+  if( sigaddset(&newmask, SIGCHLD) == -1)
+  {
+        printf("mask error\n");
+	fflush(stdout);
+	exit(0);
+  }
+  sigprocmask(SIG_BLOCK, &newmask, &oldmask);
 
   if(pipe(fd) == -1)
   {
@@ -206,7 +219,13 @@ void eval(char *cmdline)
     if(pid != 0)
     {
       addjob(jobs, pid, bg, cmdline);
-    
+      if(sigprocmask(SIG_SETMASK, &oldmask, NULL) == -1)
+      {
+        printf("mask error\n");
+	fflush(stdout);
+	exit(0);
+      }
+ 
       close(fd[0]);
       if(write(fd[1], &pid, sizeof(pid))<0)
       {
@@ -233,11 +252,8 @@ void eval(char *cmdline)
       exit(0);
     }
   
-
-
   if(bg == BG)
-  printf("[%d] %d %s", pid2jid(pid), pid,cmdline);
-
+    printf("[%d] (%d) %s", pid2jid(pid), pid,cmdline);
 
   /* parent waits for foreground job to terminate */
   if(bg == FG )
@@ -318,8 +334,108 @@ int builtin_cmd(char **argv)
     listjobs(jobs);  
     return 1;
   }
+  if(!strcmp(argv[0], "fg"))
+  {
+    return do_fg(argv);
+  }
+  if(!strcmp(argv[0], "bg"))
+  {
+    return do_bg(argv);
+  }
   return do_bgfg(argv);
 
+}
+
+int do_bg(char **argv)
+{
+    struct job_t *j; 
+    int jid;
+
+    if(argv[1]==NULL)
+    {
+      printf("bg command requires PID or %cjobid argument\n", 37);
+      fflush(stdout);
+      return 1;
+    }    
+    if(((*argv[1]>57) || (*argv[1]<48)) && (*argv[1]!=37)  )
+    {
+      printf("bg: argument must be a PID or %cjobid argument\n", 37);
+      fflush(stdout);
+      return 1;
+    }      
+    if( (*argv[1]) != 37)
+    {
+      jid = atoi(argv[1]);
+      j = getjobpid(jobs, jid);
+      if(j == NULL)
+      {
+        printf("(%d): No such process\n", jid);
+	fflush(stdout);
+	return 1;
+      }
+    }
+    else
+    {
+      jid = atoi(argv[1]+1);
+      j = getjobjid(jobs, jid);
+      if(j == NULL)
+      {
+        printf("%c%d: No such job\n", 37, jid);
+	fflush(stdout);
+	return 1;
+      }
+    }
+    j->state = BG;
+    kill(j->pid, SIGCONT);
+    printf("[%d] (%d) %s", j->jid, j->pid, j->cmdline);
+   return 1; 
+  
+
+}
+
+int do_fg(char **argv)
+{
+    struct job_t *j; 
+    int jid;
+
+    if(argv[1]==NULL)
+    {
+      printf("fg command requires PID or %cjobid argument\n", 37);
+      fflush(stdout);
+      return 1;
+    }    
+    if(((*argv[1]>57) || (*argv[1]<48)) && (*argv[1]!=37)  )
+    {
+      printf("fg: argument must be a PID or %cjobid argument\n", 37);
+      fflush(stdout);
+      return 1;
+    }      
+    if( (*argv[1]) != 37)
+    {
+      jid = atoi(argv[1]);
+      j = getjobpid(jobs, jid);
+      if(j == NULL)
+      {
+        printf("(%d): No such process\n", jid);
+	fflush(stdout);
+	return 1;
+      }
+    }
+    else
+    {
+      jid = atoi(argv[1]+1);
+      j = getjobjid(jobs, jid);
+      if(j == NULL)
+      {
+        printf("%c%d: No such job\n", 37, jid);
+	fflush(stdout);
+	return 1;
+      }
+    }
+    j->state = FG;
+    kill(-j->pid, SIGCONT);
+    waitfg(-j->pid);
+   return 1;   
 }
 
 /*
@@ -355,7 +471,6 @@ void waitfg(pid_t pid)
       fprintf(stderr, "waitfg: waitpid error");
       exit(1);
     }
-    printf("Status%d\n", status);
     if(status != 5247)
       deletejob(jobs, pid);    
 
